@@ -131,7 +131,7 @@
         // Populate table
         console.log('Results:', results);
         for await (const conversation of results.analyticsQueryResults.conversations) {
-          if (conversation.recordings) {
+          if (conversation.recordings && conversation.recordings.length > 1) {
             let conversationRow = $("<tr/>").appendTo("#conversationsTable");
 
             // Start Time
