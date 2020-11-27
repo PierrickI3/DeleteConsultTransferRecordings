@@ -52,219 +52,27 @@
     <p class="mt-5 mb-3 text-muted">&copy; Genesys</p>
   </form>
 
-  <div id="recordingsDiv" hidden>
-    <table class="table table-hover">
-      <thead>
-        <tr>
-          <th scope="col">Date</th>
-          <th scope="col">Conversation w/ Consult Transfer</th>
-          <th scope="col">Recordings</th>
-        </tr>
-      </thead>
-      <tbody id="conversationsTable">
-      </tbody>
-    </table>
-  </div>
-
-
-  <script src="https://sdk-cdn.mypurecloud.com/javascript/98.0.0/purecloud-platform-client-v2.min.js"></script>
   <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
   <script type="text/javascript">
     const clientId = "ab3380de-b472-4b76-a6e1-71c385a9cc85"; // No need to change this as this is a cross-region OAuth client unless you run this website using a different URL
-    const redirectUri = "https://localhost/index.html"; // If running locally, use your own URL (e.g. https://localhost/index.html)
+    const redirectUri = "https://localhost/recordings.html"; // If running locally, use your own URL (e.g. https://localhost/index.html)
 
-    const platformClient = require("platformClient");
-    const client = platformClient.ApiClient.instance;
-    client.setPersistSettings(true);
     let results = {};
 
-    //TODO Fix table layout when many recordings are shown
-    //TODO Add parameters to analytics query
-    //TODO Add more purposes for external calls?
-    //TODO Check fileState for each recording
-    //TODO Add warning alert
-    //TODO Add another column for consult transfer recording
-    //TODO Get more calls
-
     function login() {
-      console.log('Login()')
-      const client = platformClient.ApiClient.instance;
-      client.setEnvironment(platformClient.PureCloudRegionHosts.eu_west_1);
-      console.log('Login2()')
-      client.loginImplicitGrant(clientId, redirectUri)
-        .then((data) => {
-          console.log(data);
-          // Do authenticated things
-        })
-        .catch((err) => {
-          // Handle failure response
-          console.log(err);
-        });
-    }
+      let url = new URL(window.location.href);
+      let environment = $("#environment").val();
 
-    /*
-        async function start() {
-      try {
-        console.log('Go!');
-
-        // Get list of conversations with consult transfers to external parties
-        await runAnalyticsQuery();
-
-        // Get recordings for the external part conversation
-        await getRecordingIds();
-
-        // Add to table
-        console.log('Results:', results);
-
-        for await (const conversation of results.analyticsQueryResults.conversations) {
-          let conversationRow = $("<tr/>").appendTo("#conversationsTable");
-
-          $("<td/>", {}).text("Date").appendTo(conversationRow)
-
-          // Checkbox + Conversation id
-          let checkboxTd = $("<td/>").appendTo(conversationRow);
-          let checkboxDiv = $("<div/>", { class: "form-check" }).appendTo(checkboxTd)
-          $("<input/>", { type: "checkbox", class: "form-check-input", id: "checkbox_" + conversation.conversationId }).appendTo(checkboxDiv);
-          $("<label/>", { class: "form-check-label", for: "checkbox_" + conversation.conversationId }).text(conversation.conversationId).appendTo(checkboxDiv);
-
-          // Conversation Details Column
-          let recordingsTd = $("<td />", {}).appendTo(conversationRow);
-
-          // Participants
-          //console.log('Participants:', conversation.participants);
-          //for await (const participant of conversation.participants) {
-          //  let participantsCol = $("<td/>", {}).appendTo(participantsRow);
-          //  $("<td/>", {}).text(participant.participantId).appendTo(participantsCol);
-          //}
-
-          // Recordings
-          console.log('Recordings:', conversation.recordings);
-          for await (const recording of conversation.recordings) {
-            recordingsTd.append(recording.id);
-            $("<button/>", { class: "btn btn-danger ml-3" }).text("Delete").on('click', (e) => deleteRecording(conversation.conversationId, recording.id)).appendTo(recordingsTd);
-            $("<br>").appendTo(recordingsTd);
-
-          }
-        }
-
-      } catch (err) {
-        console.error(err);
-      } finally {
+      if (url.href.includes('access_token')) {
+        var token = url.href.split('access_token=')[1].split('&expires_in')[0];
+        console.log('Extracted token: ' + token);
+        localStorage.setItem('access_token', token);
+        localStorage.setItem('environment', environment)
+        window.location.href = redirectUri;
+      } else {
+        window.location.href = `https://login.${environment}/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token`;
       }
     }
-
-    function login() {
-      return new Promise((resolve, reject) => {
-        try {
-          client.setEnvironment($("#environment").val());
-          console.log("Login to " + $("#environment").val());
-          client.loginImplicitGrant(clientId, redirectUri, { state: '' })
-            .then((data) => {
-              console.log("Logged in!");
-              $("#loginForm").attr("hidden", true);
-              $("#recordingsDiv").attr("hidden", false);
-              start();
-              return resolve();
-            })
-            .catch((err) => {
-              console.error(err);
-              return reject(err);
-            });
-
-        } catch (err) {
-          console.error(err);
-        }
-      });
-    }
-    */
-
-    /*
-    function runAnalyticsQuery() {
-      return new Promise(async (resolve, reject) => {
-        let apiInstance = new platformClient.AnalyticsApi();
-
-        let body = {
-          "interval": "2020-11-25T23:00:00.000Z/2020-11-26T23:00:00.000Z",
-          "order": "asc",
-          "orderBy": "conversationStart",
-          "paging": {
-            "pageSize": 25,
-            "pageNumber": 1
-          },
-          "segmentFilters": [
-            {
-              "type": "or",
-              "predicates": [
-                {
-                  "type": "dimension",
-                  "dimension": "direction",
-                  "operator": "matches",
-                  "value": "outbound"
-                }
-              ]
-            }
-          ],
-          "conversationFilters": [
-            {
-              "type": "or",
-              "predicates": [
-                {
-                  "type": "metric",
-                  "metric": "nConsultTransferred",
-                  "range": {
-                    "gte": 1
-                  }
-                }
-              ]
-            }
-          ]
-        };
-
-        apiInstance.postAnalyticsConversationsDetailsQuery(body)
-          .then((data) => {
-            results.analyticsQueryResults = data;
-            return resolve(data);
-          })
-          .catch((err) => {
-            return reject(err);
-          });
-      });
-    }
-
-    function getRecordingIds() {
-      return new Promise(async (resolve, reject) => {
-        let apiInstance = new platformClient.RecordingApi();
-
-        for await (const conversation of results.analyticsQueryResults.conversations) {
-          let opts = {
-            maxWaitMs: 5000, // Number | The maximum number of milliseconds to wait for the recording to be ready. Must be a positive value.
-            formatId: "WEBM", // String | The desired media format. Possible values: NONE, MP3, WAV, or WEBM
-          };
-
-          let data = await apiInstance.getConversationRecordings(conversation.conversationId, opts);
-          conversation.recordings = data;
-        }
-        return resolve();
-      });
-    }
-
-    function deleteRecording(conversationId, recordingId) {
-      return new Promise(async (resolve, reject) => {
-        let apiInstance = new platformClient.RecordingApi();
-
-        let body = {}; // Object | recording
-
-        apiInstance.putConversationRecording(conversationId, recordingId, body)
-          .then((data) => {
-            alert('Recording deleted');
-            return resolve()
-          })
-          .catch((err) => {
-            return reject(err);
-          });
-      });
-    }
-    */
   </script>
 </body>
 
