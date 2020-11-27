@@ -255,9 +255,16 @@
             return reject('No conversations found');
           }
           for await (const conversation of results.analyticsQueryResults.conversations) {
-            let data = await callAPI('GET', `conversations/${conversation.conversationId}/recordings?maxWaitMs=5000&formatId=WEBM`);
-            console.debug(data);
-            conversation.recordings = data;
+            try {
+              let data = await callAPI('GET', `conversations/${conversation.conversationId}/recordings?maxWaitMs=5000&formatId=WEBM`);
+              console.debug(data);
+              conversation.recordings = data;
+            } catch (error) {
+              if (error.status === 404) {
+                console.debug('No recordings found for: ', conversation.conversationTd)
+                continue;
+              }
+            }
           }
           return resolve();
         } catch (error) {
