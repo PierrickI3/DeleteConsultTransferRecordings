@@ -131,64 +131,67 @@
         // Populate table
         console.log('Results:', results);
         for await (const conversation of results.analyticsQueryResults.conversations) {
-          let conversationRow = $("<tr/>").appendTo("#conversationsTable");
+          if (conversation.recordings) {
+            let conversationRow = $("<tr/>").appendTo("#conversationsTable");
 
-          // Start Time
-          $("<td/>").text(conversation.conversationStart).appendTo(conversationRow)
+            // Start Time
+            $("<td/>").text(conversation.conversationStart).appendTo(conversationRow)
 
-          // Conversation - Id
-          let conversationTd = $("<td/>").appendTo(conversationRow);
-          let conversationDiv = $("<div/>").appendTo(conversationTd);
-          $("<div/>").text(conversation.conversationId).appendTo(conversationDiv);
+            // Conversation - Id
+            let conversationTd = $("<td/>").appendTo(conversationRow);
+            let conversationDiv = $("<div/>").appendTo(conversationTd);
+            $("<div/>").text(conversation.conversationId).appendTo(conversationDiv);
 
-          // Conversation - Division
-          let conversationDivisionDiv = $("<div/>").appendTo(conversationDiv);
-          for (let index = 0; index < conversation.divisionIds.length; index++) {
-            const conversationDivisionId = conversation.divisionIds[index];
+            // Conversation - Division
+            let conversationDivisionDiv = $("<div/>").appendTo(conversationDiv);
+            for (let index = 0; index < conversation.divisionIds.length; index++) {
+              const conversationDivisionId = conversation.divisionIds[index];
 
-            // Cache division name to avoid calling the API every time
-            let divisionName;
-            let existingDivision = divisions.find(d => d.id === conversationDivisionId);
-            if (existingDivision && existingDivision.length > 0) {
-              divisionName = existingDivision.name;
-            } else {
-              let data = await callAPI('GET', `authorization/divisions/${conversationDivisionId}`);
-              divisionName = data.name;
-              divisions.push({
-                id: conversationDivisionId,
-                name: data.name
-              });
+              // Cache division name to avoid calling the API every time
+              let divisionName;
+              let existingDivision = divisions.find(d => d.id === conversationDivisionId);
+              if (existingDivision && existingDivision.length > 0) {
+                divisionName = existingDivision.name;
+              } else {
+                let data = await callAPI('GET', `authorization/divisions/${conversationDivisionId}`);
+                divisionName = data.name;
+                divisions.push({
+                  id: conversationDivisionId,
+                  name: data.name
+                });
+              }
+              $("<small/>").text(`Division: ${divisionName}`).appendTo(conversationDivisionDiv);
             }
-            $("<small/>").text(`Division: ${divisionName}`).appendTo(conversationDivisionDiv);
+
+            // Recordings
+            let recordingsTd = $("<td />", {}).appendTo(conversationRow);
+            let lastRecording;
+            for await (const recording of conversation.recordings) {
+              let recordingDiv = $("<div/>").appendTo(recordingsTd);
+              $("<div/>").text(recording.id).appendTo(recordingDiv);
+              let recordingStartTimeDiv = $("<div/>").appendTo(recordingDiv);
+              $("<small/>").text(`Start Time: ${recording.startTime}`).appendTo(recordingStartTimeDiv);
+
+              lastRecording = {
+                conversationId: conversation.conversationId,
+                recordingId: recording.id,
+                fileState: recording.fileState
+              };
+            }
+
+            // Last Recording
+            let lastRecordingTd = $("<td />", {}).appendTo(conversationRow);
+
+            let lastRecordingDiv = $("<div/>").appendTo(lastRecordingTd);
+            let buttonClass = lastRecording.fileState !== "AVAILABLE" ? "btn-success" : "btn-danger";
+            let buttonText = lastRecording.fileState !== "AVAILABLE" ? `Status: ${lastRecording.fileState}` : "Delete Last Recording";
+            let buttonDisabled = lastRecording.fileState !== "AVAILABLE";
+            $("<button/>", { class: `btn ml-3 ${buttonClass}`, disabled: buttonDisabled }).text(buttonText).on('click', (e) => deleteRecording(lastRecording.conversationId, lastRecording.recordingId)).appendTo(lastRecordingDiv);
+
+            let lastRecordingRecordingId = $("<div/>").appendTo(lastRecordingDiv);
+            $("<small/>", {}).text(` (${lastRecording.recordingId})`).appendTo(lastRecordingRecordingId);
+
           }
-
-          // Recordings
-          let recordingsTd = $("<td />", {}).appendTo(conversationRow);
-          let lastRecording;
-          for await (const recording of conversation.recordings) {
-            let recordingDiv = $("<div/>").appendTo(recordingsTd);
-            $("<div/>").text(recording.id).appendTo(recordingDiv);
-            let recordingStartTimeDiv = $("<div/>").appendTo(recordingDiv);
-            $("<small/>").text(`Start Time: ${recording.startTime}`).appendTo(recordingStartTimeDiv);
-
-            lastRecording = {
-              conversationId: conversation.conversationId,
-              recordingId: recording.id,
-              fileState: recording.fileState
-            };
-          }
-
-          // Last Recording
-          let lastRecordingTd = $("<td />", {}).appendTo(conversationRow);
-
-          let lastRecordingDiv = $("<div/>").appendTo(lastRecordingTd);
-          let buttonClass = lastRecording.fileState !== "AVAILABLE" ? "btn-success" : "btn-danger";
-          let buttonText = lastRecording.fileState !== "AVAILABLE" ? `Status: ${lastRecording.fileState}` : "Delete Last Recording";
-          let buttonDisabled = lastRecording.fileState !== "AVAILABLE";
-          $("<button/>", { class: `btn ml-3 ${buttonClass}`, disabled: buttonDisabled }).text(buttonText).on('click', (e) => deleteRecording(lastRecording.conversationId, lastRecording.recordingId)).appendTo(lastRecordingDiv);
-
-          let lastRecordingRecordingId = $("<div/>").appendTo(lastRecordingDiv);
-          $("<small/>", {}).text(` (${lastRecording.recordingId})`).appendTo(lastRecordingRecordingId);
         }
       } catch (err) {
         console.error(err);
