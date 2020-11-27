@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+  ],
+  "settings": {
+    "editor.formatOnSave": true,
+    "html.format.wrapLineLength": 0,
+    "editor.defaultFormatter": "vscode.html-language-features",
+    "[html]": {
+      "editor.defaultFormatter": "vscode.html-language-features"
+    }
+  }
+}
