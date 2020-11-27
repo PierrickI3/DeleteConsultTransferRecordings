@@ -34,10 +34,12 @@
   <div style="margin: 0 auto;">
 
     <!-- Header -->
+    <button class="btn btn-secondary" type="button" onclick="logout()">Logout</button>
     <h3>Delete Consult Transfer Recordings</h3>
 
     <!-- Messages -->
     <div class="alert alert-info mb-3 mt-3" role="alert">
+      Your user needs the following permissions: Recordings > All Permissions and Analytics > All Permissions<br>
       Recordings will not show as deleted immediately. This will take a few minutes.
     </div>
     <div class="alert alert-warning mb-3 mt-3" role="alert">
@@ -84,6 +86,9 @@
 
     let results = {};
     let divisions = [];
+
+    let token = localStorage.getItem('access_token');
+    let environment = localStorage.getItem('environment');
 
     //#region Date Range Selection
 
@@ -278,10 +283,14 @@
       });
     }
 
-    function callAPI(method, apiPath, body) {
-      let token = localStorage.getItem('access_token');
-      let environment = localStorage.getItem('environment');
+    async function logout() {
+      await callAPI('DELETE', 'tokens/me');
+      localStorage.clear('access_token');
+      localStorage.clear('environment');
+      window.location.href = 'index.html';
+    }
 
+    function callAPI(method, apiPath, body) {
       console.debug('Calling:', apiPath);
 
       return new Promise(async (resolve, reject) => {
