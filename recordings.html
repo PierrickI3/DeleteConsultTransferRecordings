@@ -31,7 +31,30 @@
 </head>
 
 <body class="text-center">
+
+  <!-- Main Body -->
   <div style="margin: 0 auto;">
+
+    <!-- Toast -->
+    <div aria-live="polite" aria-atomic="true" style="position: fixed; min-height: 200px; z-index: 999999;">
+      <!-- Position it -->
+      <div style="position: fixed; top: 0; right: 0; z-index: 999999;">
+
+        <!-- Then put toasts within -->
+        <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+          <div class="toast-header bg-secondary text-white">
+            <strong class="mr-auto">Deleting Recording</strong>
+            <small class="text-muted">just now</small>
+            <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="toast-body bg-success text-white">
+            Your recording will be deleted shortly.
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Header -->
     <button class="btn btn-secondary" type="button" onclick="logout()">Logout</button>
@@ -46,16 +69,16 @@
       WARNING: Once recordings are deleted, they can not be recovered. Make sure you know what you are doing!
     </div>
 
-    <!-- Date Selection -->
+    <!-- Date Selection & Search Button -->
     <div class="span5 col-md-5 mb-3" id="sandbox-container" style="margin: 0 auto;">
       <h4>Select a Date range</h4>
-      <div class="input-daterange input-group" id="datepicker">
+      <small><strong>Do not exceed 31 days</strong></small><br>
+      <div class="input-daterange input-group mb-3" id="datepicker">
         <input type="text" class="input-sm form-control" name="start" id="start">
         <span class="input-group-addon ml-2 mr-2">to</span>
         <input type="text" class="input-sm form-control" name="end" id="end">
       </div>
       <div>
-        <small><strong>Do not exceed 31 days</strong></small><br>
         <button class="btn btn-primary" type="button" onclick="start()" id="search">
           <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" id="spinner" hidden></span>
           Search
@@ -76,19 +99,28 @@
       <tbody id="conversationsTable">
       </tbody>
     </table>
+
   </div>
 
-  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
   <script src="./assets/dist/js/bootstrap-datepicker.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
 
   <script type="text/javascript">
+
+    //TODO Add all pages for analytics results
+    //TODO Show external phone number
 
     let results = {};
     let divisions = [];
 
     let token = localStorage.getItem('access_token');
     let environment = localStorage.getItem('environment');
+
+    $('.toast').toast({
+      delay: 10000
+    });
 
     //#region Date Range Selection
 
@@ -97,12 +129,9 @@
       date.setDate(date.getDate() + days);
       return date;
     }
-    let endDate = new Date();
-    endDate.addDays(1);
 
     $('#sandbox-container .input-daterange').datepicker({
       format: "yyyy-mm-ddT00:00:00Z",
-      endDate: endDate.toISOString().split("T")[0],
       todayBtn: "linked",
       autoclose: true,
       todayHighlight: true
@@ -121,6 +150,7 @@
         }
 
         console.log('start()');
+        $("#conversationsTable").empty();
 
         // Get list of conversations with consult transfers to external parties
         await runAnalyticsQuery();
@@ -140,7 +170,7 @@
             // Conversation - Id
             let conversationTd = $("<td/>").appendTo(conversationRow);
             let conversationDiv = $("<div/>").appendTo(conversationTd);
-            $("<div/>").text(conversation.conversationId).appendTo(conversationDiv);
+            $("<div/>").html(`<a href="https://apps.${environment}/directory/#/engage/admin/interactions/${conversation.conversationId}" target="_blank">${conversation.conversationId}</a>`).appendTo(conversationDiv);
 
             // Conversation - Division
             let conversationDivisionDiv = $("<div/>").appendTo(conversationDiv);
@@ -286,6 +316,7 @@
 
           let data = await callAPI('PUT', `conversations/${conversationId}/recordings/${recordingId}`, body);
           console.log('Recording deleted');
+          $('.toast').toast('show')
           return resolve();
         } catch (error) {
           return reject(error);
