@@ -1,97 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>Delete External Consult Transfers</title>
 
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-  <title>Delete External Consult Transfers</title>
+    <!-- Bootstrap core CSS -->
+    <link href="./assets/dist/css/bootstrap.min.css" rel="stylesheet" />
 
-  <!-- Bootstrap core CSS -->
-  <link href="./assets/dist/css/bootstrap.min.css" rel="stylesheet" />
-
-  <style>
-    .bd-placeholder-img {
-      font-size: 1.125rem;
-      text-anchor: middle;
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none;
-    }
-
-    @media (min-width: 768px) {
-      .bd-placeholder-img-lg {
-        font-size: 3.5rem;
+    <style>
+      .bd-placeholder-img {
+        font-size: 1.125rem;
+        text-anchor: middle;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
       }
-    }
-  </style>
-  <!-- Custom styles for this template -->
-  <link href="index.css" rel="stylesheet" />
-</head>
 
-<body class="text-center">
-  <form id="loginForm" class="form-signin">
-    <img class="mb-4" src="./assets/brand/genesys.png" alt="" />
-    <h1 class="h3 mb-3 font-weight-normal">Delete Consult Transfers Recordings</h1>
-    <label for="exampleFormControlSelect1">Select your environment</label>
-    <select class="form-control mb-3" id="environment">
-      <option value="apne2.pure.cloud">Asia Pacific (Seoul)</option>
-      <option value="mypurecloud.com.au">Asia Pacific (Sydney)</option>
-      <option value="mypurecloud.jp">Asia Pacific (Tokyo)</option>
-      <option value="cac1.pure.cloud">Canada (Canada Central)</option>
-      <option value="mypurecloud.de">EU (Frankfurt)</option>
-      <option value="mypurecloud.ie" selected>EU (Ireland)</option>
-      <option value="euw2.pure.cloud">EU (London)</option>
-      <option value="mypurecloud.com">US East (N. Virginia)</option>
-      <option value="usw2.pure.cloud">US West (Oregon)</option>
-    </select>
-
-    <button class="btn btn-lg btn-primary btn-block" id="login">
-      Login
-    </button>
-    <p class="mt-5 mb-3 text-muted">&copy; Genesys</p>
-  </form>
-
-  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-  <script type="text/javascript">
-    const clientId = "ab3380de-b472-4b76-a6e1-71c385a9cc85"; // No need to change this as this is a cross-region OAuth client unless you run this website using a different URL
-    const redirectUri = window.location.href;
-
-    let results = {};
-
-    if (window.location.hash) {
-      console.log(location.hash);
-      let token = getParameterByName('access_token');
-      localStorage.setItem('access_token', token);
-      location.hash = ''
-      window.location.replace('recordings.html');
-    }
-
-    function getParameterByName(name) {
-      name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
-      let regex = new RegExp("[\\#&]" + name + "=([^&#]*)");
-      let results = regex.exec(location.hash);
-      return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
-    }
-
-    $("#login").click((e) => {
-      e.preventDefault();
-      login();
-    });
-
-    function login() {
-      let queryStringData = {
-        response_type: "token",
-        client_id: clientId,
-        redirect_uri: redirectUri
+      @media (min-width: 768px) {
+        .bd-placeholder-img-lg {
+          font-size: 3.5rem;
+        }
       }
-      let environment = $("#environment").val();
-      localStorage.setItem('environment', environment);
-      let replaceUrl = `https://login.${environment}/oauth/authorize?${jQuery.param(queryStringData)}`;
-      console.log('Replacing URL with:', replaceUrl);
-      window.location.href = replaceUrl;
-    }
-  </script>
-</body>
+    </style>
+    <!-- Custom styles for this template -->
+    <link href="index.css" rel="stylesheet" />
+  </head>
 
+  <body class="text-center">
+    <form id="loginForm" class="form-signin">
+      <img class="mb-4" src="./assets/brand/genesys.png" alt="" />
+      <h1 class="h3 mb-3 font-weight-normal">Delete Consult Transfers Recordings</h1>
+      <label for="exampleFormControlSelect1">Select your environment</label>
+      <select class="form-control mb-3" id="environment">
+        <option value="inintca.com">inin-tca (Genesys)</option>
+        <option value="apne2.pure.cloud">Asia Pacific (Seoul)</option>
+        <option value="mypurecloud.com.au">Asia Pacific (Sydney)</option>
+        <option value="mypurecloud.jp">Asia Pacific (Tokyo)</option>
+        <option value="cac1.pure.cloud">Canada (Canada Central)</option>
+        <option value="mypurecloud.de">EU (Frankfurt)</option>
+        <option value="mypurecloud.ie" selected>EU (Ireland)</option>
+        <option value="euw2.pure.cloud">EU (London)</option>
+        <option value="mypurecloud.com">US East (N. Virginia)</option>
+        <option value="usw2.pure.cloud">US West (Oregon)</option>
+      </select>
+
+      <button class="btn btn-lg btn-primary btn-block" id="login">Login</button>
+      <p class="mt-5 mb-3 text-muted">&copy; Genesys</p>
+    </form>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script type="text/javascript">
+      const clientId = 'ab3380de-b472-4b76-a6e1-71c385a9cc85'; // No need to change this as this is a cross-region OAuth client unless you run this website using a different URL
+      const redirectUri = window.location.href;
+
+      let results = {};
+
+      if (window.location.hash) {
+        console.log(location.hash);
+        let token = getParameterByName('access_token');
+        localStorage.setItem('access_token', token);
+        location.hash = '';
+        window.location.replace('recordings.html');
+      }
+
+      function getParameterByName(name) {
+        name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+        let regex = new RegExp('[\\#&]' + name + '=([^&#]*)');
+        let results = regex.exec(location.hash);
+        return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+      }
+
+      $('#login').click((e) => {
+        e.preventDefault();
+        login();
+      });
+
+      function login() {
+        let queryStringData = {
+          response_type: 'token',
+          client_id: clientId,
+          redirect_uri: redirectUri,
+        };
+        let environment = $('#environment').val();
+        localStorage.setItem('environment', environment);
+        let replaceUrl = `https://login.${environment}/oauth/authorize?${jQuery.param(queryStringData)}`;
+        console.log('Replacing URL with:', replaceUrl);
+        window.location.href = replaceUrl;
+      }
+    </script>
+  </body>
 </html>
