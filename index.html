@@ -52,7 +52,7 @@
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script type="text/javascript">
-      const clientId = 'ab3380de-b472-4b76-a6e1-71c385a9cc85'; // No need to change this as this is a cross-region OAuth client unless you run this website using a different URL
+      let clientId = 'ab3380de-b472-4b76-a6e1-71c385a9cc85'; // No need to change this as this is a cross-region OAuth client unless you run this website using a different URL
       const redirectUri = window.location.href;
 
       let results = {};
@@ -74,6 +74,10 @@
 
       $('#login').click((e) => {
         e.preventDefault();
+        // Use a specific client id for inintca
+        if ($('#environment').val() === 'inintca.com') {
+          clientId = '3bf2ae76-8cbf-4e4f-8257-905cbfa14812';
+        }
         login();
       });
 
