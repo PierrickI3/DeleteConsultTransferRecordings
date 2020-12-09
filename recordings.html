@@ -57,9 +57,10 @@
     </div>
 
     <!-- Header -->
+    <button class="btn btn-secondary float-right mr-3" type="button" onclick="logout()">Logout</button>
     <div class="span5 col-md-5 mb-3" id="sandbox-container" style="margin: 0 auto;">
-      <button class="btn btn-secondary" type="button" onclick="logout()">Logout</button>
       <h3>Delete Consult Transfer Recordings</h3>
+      <div>This tool runs an analytics query to find calls with external consult transfers that were recorded and allows you to delete the last recording (which includes the conversation between the caller and the destination the call was transferred to) for this call.</div>
     </div>
 
     <!-- Messages -->
@@ -74,15 +75,24 @@
     </div>
 
     <!-- Date Selection & Search Button -->
-    <div class="span5 col-md-5 mb-3" id="sandbox-container" style="margin: 0 auto;">
-      <h4>Select a Date range</h4>
-      <small>Last 14 days by default. Do not exceed 31 days.</small><br>
-      <div class="input-daterange input-group mb-3" id="datepicker">
-        <input type="text" class="input-sm form-control" name="start" id="start">
-        <span class="input-group-addon ml-2 mr-2">to</span>
-        <input type="text" class="input-sm form-control" name="end" id="end">
+    <div class="span5 col-md-5" id="sandbox-container" style="margin: 0 auto;">
+      <div class="mb-3">
+        <div class="row">
+          <h6>#1 Select a Date range:</h6>
+          <div class="input-daterange input-group mb-1" id="datepicker">
+            <span class="input-group-addon ml-2 mr-2">from</span>
+            <input type="text" class="input-sm form-control" name="start" id="start">
+            <span class="input-group-addon ml-2 mr-2">to</span>
+            <input type="text" class="input-sm form-control" name="end" id="end">
+          </div>
+        </div>
+        <small>Last 14 days by default. Do not exceed 31 days.</small><br>
       </div>
-      <div>
+      <div class="row mb-3">
+        <h6>#2 (Optional) Filter calls with this phone number:</h6>
+        <input type="text" class="form-control" name="externalPhoneNumber" id="externalPhoneNumber">
+      </div>
+      <div class="mb-3">
         <button class="btn btn-primary" type="button" onclick="start()" id="search">
           <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" id="spinner" hidden></span>
           Search
@@ -160,7 +170,7 @@
 
         // Get list of conversations with consult transfers to external parties
         showStatus('Getting Conversations with a completed external consult transfer...');
-        await runAnalyticsQuery();
+        await runAnalyticsQuery($("#externalPhoneNumber").val());
 
         // Get recordings ids
         showStatus('Getting Recordings...');
@@ -177,7 +187,7 @@
       }
     }
 
-    function runAnalyticsQuery() {
+    function runAnalyticsQuery(phoneNumber) {
       return new Promise(async (resolve, reject) => {
         try {
           let body = {
@@ -190,7 +200,7 @@
             },
             "segmentFilters": [
               {
-                "type": "or",
+                "type": "and",
                 "predicates": [
                   {
                     "type": "dimension",
@@ -203,7 +213,7 @@
             ],
             "conversationFilters": [
               {
-                "type": "or",
+                "type": "and",
                 "predicates": [
                   {
                     "type": "metric",
@@ -217,6 +227,16 @@
             ]
           };
 
+          if (phoneNumber) {
+            body.segmentFilters[0].predicates.push({
+              "type": "dimension",
+              "dimension": "ani",
+              "operator": "matches",
+              "value": phoneNumber
+            })
+          }
+
+          console.log('Running analytics query:', body);
           let data = await callAPI('POST', 'analytics/conversations/details/query', body);
           results.analyticsQueryResults = data;
           return resolve();
@@ -290,6 +310,19 @@
               });
             }
             $("<small/>").text(`Division: ${divisionName}`).appendTo(conversationDivisionDiv);
+          }
+
+          // Conversation - External Phone Number
+          let conversationExternalPhoneNumberDiv = $("<div/>").appendTo(conversationDiv);
+
+          for (let index = 0; index < conversation.participants.length; index++) {
+            const conversationParticipant = conversation.participants[index];
+            if ((conversationParticipant.purpose === 'customer' || conversationParticipant.purpose === 'external') && conversationParticipant.externalContactId) {
+              let externalPhoneNumber = conversationParticipant.sessions.find(s => s.mediaType === 'voice').ani;
+              $("<small/>").text(`Exernal Phone Number: ${externalPhoneNumber}`).appendTo(conversationExternalPhoneNumberDiv);
+              $("<br/>").appendTo(conversationExternalPhoneNumberDiv);
+            }
+
           }
 
           // Recordings
