@@ -453,6 +453,8 @@ function getMyActivity(period) {
     } catch (error) {
       console.error(error);
       return reject(error);
+    } finally {
+      $("#spinner").hide();
     }
   });
 }
@@ -511,14 +513,14 @@ axios.interceptors.response.use(async (response) => {
       if (response.config.url.indexOf('audits') !== -1) {
         return response; // Audits take a while to return results. Just ignore this here.
       } else {
-        console.log('Recording is not ready yet. Retrying...:', response.config);
-        await sleep(5000);
+        console.log('Recording is not ready yet. Waiting for 3 seconds and retrying...:', response.config);
+        await sleep(3000);
         return axios.request(response.config);
       }
     case 400:
       if (response.config.url.indexOf('audits') !== -1) {
-        console.log('Audits query is not ready yet. Waiting for 5 seconds and retrying...:', response.config);
-        await sleep(5000);
+        console.log('Audits query is not ready yet. Waiting for 3 seconds and retrying...:', response.config);
+        await sleep(3000);
         return axios.request(response.config);
       } else {
         return response;
