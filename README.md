@@ -1,10 +1,6 @@
 # DeleteConsultTransferRecordings
 
-This tool scans a Genesys Cloud organization using your own credentials and lists recordings that have been affected by the ? bug which caused external transfers to be recorded.
-
-TODO:
-
-- Add screenshots
+This tool scans a Genesys Cloud organization using your own credentials and lists recordings that have been affected by a Genesys Cloud bug which caused external transfers to be recorded.
 
 ## How it works
 
