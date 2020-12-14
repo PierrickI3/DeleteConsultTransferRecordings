@@ -1,10 +1,21 @@
 # DeleteConsultTransferRecordings
 
-To do:
+This tool scans a Genesys Cloud organization using your own credentials and lists recordings that have been affected by the ? bug which caused external transfers to be recorded.
 
-- :heavy_check_mark: Set delete date to currentTime or currentTime - 1 (yesterday)
-- :heavy_check_mark: Fix search not showing data on first try (but works on 2nd try)
-- :heavy_check_mark: Fix logout not causing login to appear again (is token really cleared?)
-- :heavy_check_mark: Show external phone number
-- :heavy_check_mark: Filter by phone number
-- Add all pages for analytics results (handle 429)
+TODO:
+
+- Add screenshots
+
+## How to use
+
+- Go to [https://pierricki3.github.io/DeleteConsultTransferRecordings/index.html](https://pierricki3.github.io/DeleteConsultTransferRecordings/index.html)
+- Select your Genesys Cloud organization
+- Login using your own credentials
+- Set a date range to search for recordings and click on `Search`
+- It can take a while to retrieve all recordings so be patient and do not close the page
+- Once conversations show up, you can delete the `Last Recording` for each conversation
+
+## Developers
+
+- Clone this repository
+- Start a web server (or use VSCode live server extension)
