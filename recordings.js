@@ -454,7 +454,7 @@ function getMyActivity(period) {
       console.error(error);
       return reject(error);
     } finally {
-      $("#spinner").hide();
+      $("#activitySpinner").hide();
     }
   });
 }
