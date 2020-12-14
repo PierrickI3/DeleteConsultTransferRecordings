@@ -55,10 +55,10 @@ async function start() {
 
     // Get list of conversations with consult transfers to external parties
     showStatus('Getting Conversations with a completed external consult transfer...');
-    await getAnalyticsConversations($("#externalPhoneNumber").val());
+    await getAnalyticsConversations();
 
     showStatus('Filtering Conversations...');
-    await filterConversations();
+    await filterConversations($("#transferPhoneNumber").val());
 
     // Get recordings ids
     showStatus('Getting Recordings...');
@@ -79,7 +79,7 @@ async function start() {
  * Starts the entire process
  * @param phoneNumber (optional) Specific phone number to search for
  * */
-function getAnalyticsConversations(phoneNumber) {
+function getAnalyticsConversations() {
   return new Promise(async (resolve, reject) => {
 
     // Clear all existing conversations
@@ -137,15 +137,6 @@ function getAnalyticsConversations(phoneNumber) {
             ]
           };
 
-          if (phoneNumber) {
-            body.segmentFilters[0].predicates.push({
-              "type": "dimension",
-              "dimension": "ani",
-              "operator": "matches",
-              "value": phoneNumber
-            });
-          }
-
           console.log('Running analytics query:', body);
           console.debug('Page Number:', pageNumber);
           console.debug('Start Date:', startDate);
@@ -188,7 +179,7 @@ function getAnalyticsConversations(phoneNumber) {
  * 
  * If so, conversation qualifies. If not, conversation will not be shown.
  */
-function filterConversations() {
+function filterConversations(phoneNumber) {
   return new Promise(async (resolve, reject) => {
     try {
       if (!results.conversations) {
@@ -196,13 +187,13 @@ function filterConversations() {
         return reject('No conversations found');
       }
 
-
       let filteredConversations = [];
-
       for await (const conversation of results.conversations) {
         // Get last participant
         let lastParticipant = conversation.participants[conversation.participants.length - 1];
         console.log('Last Participant:', lastParticipant);
+
+        // Only keep conversations which last participant's purpose is "customer"
         if (lastParticipant.purpose !== 'customer') {
           continue; // Next!
         }
@@ -210,13 +201,23 @@ function filterConversations() {
         // Get last session
         let lastSession = lastParticipant.sessions[lastParticipant.sessions.length - 1];
         console.log('Last Session:', lastSession);
+
+        // If dnis != sessionDnis, ignore this conversation
+        // This means that the call was not transferred
         if (lastSession.dnis === lastSession.sessionDnis) {
           continue; // Next!
+        }
+
+        // If phoneNumber is set, do not show calls that were not transferred to that phone number
+        if (phoneNumber && phoneNumber !== lastSession.sessionDnis) {
+          continue; //Next
         }
 
         // Get last segment
         let lastSegment = lastSession.segments[lastSession.segments.length - 1];
         console.log('Last Segment:', lastSegment);
+
+        // If the last segment is not "interact", the ignore the conversation
         if (lastSegment.segmentType !== 'interact') {
           continue; // Next!
         }
@@ -312,10 +313,9 @@ async function populateTable() {
         const conversationParticipant = conversation.participants[index];
         if ((conversationParticipant.purpose === 'customer' || conversationParticipant.purpose === 'external') && conversationParticipant.externalContactId) {
           let externalPhoneNumber = conversationParticipant.sessions.find(s => s.mediaType === 'voice').ani;
-          $("<small/>").text(`Exernal Phone Number: ${externalPhoneNumber}`).appendTo(conversationExternalPhoneNumberDiv);
+          $("<small/>").text(`External Caller's Phone Number: ${externalPhoneNumber}`).appendTo(conversationExternalPhoneNumberDiv);
           $("<br/>").appendTo(conversationExternalPhoneNumberDiv);
         }
-
       }
 
       // Recordings
@@ -390,6 +390,8 @@ async function logout() {
 //#region My Activity
 
 function getMyActivity(period) {
+  $('#auditResults').empty();
+
   let startDate, endDate;
   switch (period) {
     case 'today':
@@ -408,7 +410,7 @@ function getMyActivity(period) {
     default:
       break;
   }
-  let interval = `${startDate.toISOString()}/${startDate.toISOString()}`;
+  let interval = `${startDate.toISOString()}/${endDate.toISOString()}`;
   console.log('Interval:', interval);
 
   return new Promise(async (resolve, reject) => {
@@ -431,8 +433,23 @@ function getMyActivity(period) {
           }
         ]
       };
-      let auditResults = await callAPI('POST', 'audits/query', body);
-      return resolve(auditResults);
+      let auditQueryResults = await callAPI('POST', 'audits/query', body);
+      console.log('Audit Query Results:', auditQueryResults);
+
+      while (true) {
+        let auditResults = await callAPI('GET', `audits/query/${auditQueryResults.id}/results?pageSize=100`);
+        console.log('Audit Results:', auditResults);
+        for await (const result of auditResults.entities) {
+          let row = $('<tr/>').appendTo('#auditResults');
+          $('<th/>', { scope: 'row' }).text(result.eventDate).appendTo(row);
+          $('<td/>').text(result.action).appendTo(row);
+          $('<td/>').text(result.entityType).appendTo(row);
+          $('<td/>').text(result.entity.id).appendTo(row);
+          $('<td/>').text(result.context.conversationId).appendTo(row);
+        }
+        break;
+      }
+      return resolve(auditQueryResults);
     } catch (error) {
       console.error(error);
       return reject(error);
@@ -460,7 +477,10 @@ function callAPI(method, apiPath, body) {
           Authorization: `bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        data: body
+        data: body,
+        validateStatus: function (status) {
+          return status >= 200 && status < 500; // Errors handled by axios interceptor (check below in this file)
+        }
       })
         .then((response) => {
           if (response.status === 202) {
@@ -488,10 +508,21 @@ axios.interceptors.response.use(async (response) => {
   console.debug('Response:', response);
   switch (response.status) {
     case 202:
-      //DIFFERNET LOGIC FOR AUDITS QUERY. NEED TO GET ID AND TRY GETTING THE RESULTS
-      console.log('Query is not ready yet. Retrying...:', response.config);
-      await sleep(5000);
-      return axios.request(response.config);
+      if (response.config.url.indexOf('audits') !== -1) {
+        return response; // Audits take a while to return results. Just ignore this here.
+      } else {
+        console.log('Recording is not ready yet. Retrying...:', response.config);
+        await sleep(5000);
+        return axios.request(response.config);
+      }
+    case 400:
+      if (response.config.url.indexOf('audits') !== -1) {
+        console.log('Audits query is not ready yet. Waiting for 5 seconds and retrying...:', response.config);
+        await sleep(5000);
+        return axios.request(response.config);
+      } else {
+        return response;
+      }
     case 429:
       console.log('Too many requests. Waiting for 1 minute and trying again...');
       await sleep(60000);
@@ -501,6 +532,7 @@ axios.interceptors.response.use(async (response) => {
   }
   return response;
 }, (error) => {
+  console.error('in interceptor error');
   return Promise.reject(error);
 });
 

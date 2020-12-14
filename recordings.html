@@ -62,14 +62,7 @@
                     <th scope="col">Conversation Id</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr>
-                    <th scope="row">2020-12-14T10:31:31Z</th>
-                    <td>UpdateRetention</td>
-                    <td>Recording</td>
-                    <td>2675ac6e-b657-494d-8ccc-ec120ce35722</td>
-                    <td>c92a0437-8057-4a1d-98ef-1c7af9809225</td>
-                  </tr>
+                <tbody id="auditResults">
                 </tbody>
               </table>
             </div>
@@ -114,11 +107,10 @@
             <input type="text" class="input-sm form-control" name="end" id="end">
           </div>
         </div>
-        <small>Last 14 days by default. Do not exceed 31 days.</small><br>
       </div>
       <div class="row mb-3">
-        <h6>#2 (optional) Only show calls with this phone number:</h6>
-        <input type="text" class="form-control" name="externalPhoneNumber" id="externalPhoneNumber">
+        <h6>#2 (optional) Only show calls transferred to this phone number:</h6>
+        <input type="text" class="form-control" name="transferPhoneNumber" id="transferPhoneNumber">
       </div>
       <div class="mb-3">
         <button class="btn btn-primary" type="button" onclick="start()" id="search">
