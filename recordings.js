@@ -52,6 +52,9 @@ async function start() {
     showStatus('Getting Conversations with a completed external consult transfer...');
     await getAnalyticsConversations($("#externalPhoneNumber").val());
 
+    showStatus('Filtering Conversations...');
+    await filterConversations();
+
     // Get recordings ids
     showStatus('Getting Recordings...');
     await getRecordingIds();
@@ -103,9 +106,15 @@ function getAnalyticsConversations(phoneNumber) {
                     "dimension": "direction",
                     "operator": "matches",
                     "value": "outbound"
+                  },
+                  {
+                    "type": "dimension",
+                    "dimension": "segmentType",
+                    "operator": "matches",
+                    "value": "interact"
                   }
                 ]
-              }
+              },
             ],
             "conversationFilters": [
               {
@@ -160,6 +169,57 @@ function getAnalyticsConversations(phoneNumber) {
     }
     console.log('Got conversations:', results.conversations);
     return resolve();
+  });
+}
+
+function filterConversations() {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!results.conversations) {
+        alert('No conversations found');
+        return reject('No conversations found');
+      }
+
+      // - Get last participant from conversation
+      //   - Is purpose = "customer"?
+      // - Get last session
+      //   - Is dnis !== sessionDnis?
+      // - Get last segment
+      //   - Is segmentType = "interact"?
+
+      let filteredConversations = [];
+
+      for await (const conversation of results.conversations) {
+        // Get last participant
+        let lastParticipant = conversation.participants[conversation.participants.length - 1];
+        console.log('Last Participant:', lastParticipant);
+        if (lastParticipant.purpose !== 'customer') {
+          continue; // Next!
+        }
+
+        // Get last session
+        let lastSession = lastParticipant.sessions[lastParticipant.sessions.length - 1];
+        console.log('Last Session:', lastSession);
+        if (lastSession.dnis === lastSession.sessionDnis) {
+          continue; // Next!
+        }
+
+        // Get last segment
+        let lastSegment = lastSession.segments[lastSession.segments.length - 1];
+        console.log('Last Segment:', lastSegment);
+        if (lastSegment.segmentType !== 'interact') {
+          continue; // Next!
+        }
+
+        console.log('Conversation is a match:', conversation.conversationId);
+        filteredConversations.push(conversation);
+      }
+      results.conversations = filteredConversations;
+      console.log('After Filtering Conversations:', results);
+      return resolve();
+    } catch (error) {
+      return reject(error);
+    }
   });
 }
 
