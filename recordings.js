@@ -25,6 +25,11 @@ $('#sandbox-container .input-daterange').datepicker({
 // Set end date to today's date
 $("#end").val(new Date().toISOString());
 
+$('#myActivityModal').on('shown.bs.modal', function (e) {
+  // do something...
+  getMyActivity('today');
+});
+
 //#endregion
 
 //#region Genesys Cloud Functions
@@ -172,6 +177,17 @@ function getAnalyticsConversations(phoneNumber) {
   });
 }
 
+/**
+ * 
+ * - Get last participant from conversation
+ *   - Is purpose = "customer"?
+ * - Get last session
+ *   - Is dnis !== sessionDnis?
+ * - Get last segment
+ *   - Is segmentType = "interact"?
+ * 
+ * If so, conversation qualifies. If not, conversation will not be shown.
+ */
 function filterConversations() {
   return new Promise(async (resolve, reject) => {
     try {
@@ -180,12 +196,6 @@ function filterConversations() {
         return reject('No conversations found');
       }
 
-      // - Get last participant from conversation
-      //   - Is purpose = "customer"?
-      // - Get last session
-      //   - Is dnis !== sessionDnis?
-      // - Get last segment
-      //   - Is segmentType = "interact"?
 
       let filteredConversations = [];
 
@@ -377,6 +387,61 @@ async function logout() {
 
 //#endregion
 
+//#region My Activity
+
+function getMyActivity(period) {
+  let startDate, endDate;
+  switch (period) {
+    case 'today':
+      startDate = new Date();
+      startDate.setUTCHours(0, 0, 0, 0);
+      endDate = new Date();
+      break;
+    case 'yesterday':
+      startDate = new Date();
+      startDate = startDate.addDays(-1);
+      startDate.setUTCHours(0, 0, 0, 0);
+      endDate = new Date();
+      endDate = endDate.addDays(-1);
+      endDate.setUTCHours(23, 59, 59, 999);
+      break;
+    default:
+      break;
+  }
+  let interval = `${startDate.toISOString()}/${startDate.toISOString()}`;
+  console.log('Interval:', interval);
+
+  return new Promise(async (resolve, reject) => {
+    try {
+      let body = {
+        "interval": interval,
+        "serviceName": "Quality",
+        "filters": [
+          {
+            "property": "UserId",
+            "value": "6c8e15bd-7689-417f-adfa-00ab71920bde"
+          },
+          {
+            "property": "EntityType",
+            "value": "Recording"
+          },
+          {
+            "property": "Action",
+            "value": "UpdateRetention"
+          }
+        ]
+      };
+      let auditResults = await callAPI('POST', 'audits/query', body);
+      return resolve(auditResults);
+    } catch (error) {
+      console.error(error);
+      return reject(error);
+    }
+  });
+}
+
+//#endregion
+
 //#region Misc Functions
 
 function showStatus(message) {
@@ -423,8 +488,9 @@ axios.interceptors.response.use(async (response) => {
   console.debug('Response:', response);
   switch (response.status) {
     case 202:
-      console.log('Recording is not ready yet. Retrying...');
-      await sleep(1000);
+      //DIFFERNET LOGIC FOR AUDITS QUERY. NEED TO GET ID AND TRY GETTING THE RESULTS
+      console.log('Query is not ready yet. Retrying...:', response.config);
+      await sleep(5000);
       return axios.request(response.config);
     case 429:
       console.log('Too many requests. Waiting for 1 minute and trying again...');

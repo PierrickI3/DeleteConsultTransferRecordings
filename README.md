@@ -5,6 +5,7 @@ This tool scans a Genesys Cloud organization using your own credentials and list
 TODO:
 
 - Add screenshots
+- Add audit trail of recordings that were deleted
 
 ## How to use
 
