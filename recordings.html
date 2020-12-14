@@ -81,7 +81,7 @@
           <h6>#1 Select a Date range:</h6>
           <div class="input-daterange input-group mb-1" id="datepicker">
             <span class="input-group-addon ml-2 mr-2">from</span>
-            <input type="text" class="input-sm form-control" name="start" id="start">
+            <input type="text" class="input-sm form-control" name="start" id="start" value="2020-10-14T00:00:00Z">
             <span class="input-group-addon ml-2 mr-2">to</span>
             <input type="text" class="input-sm form-control" name="end" id="end">
           </div>
@@ -126,21 +126,16 @@
     let results = {};
     let divisions = [];
 
+    // Get Genesys Cloud credentials
     let token = localStorage.getItem('access_token');
     let environment = localStorage.getItem('environment');
 
+    // Configure toast
     $('.toast').toast({
       delay: 10000
     });
 
-    //#region Date Range Selection
-
-    Date.prototype.addDays = function (days) {
-      var date = new Date(this.valueOf());
-      date.setDate(date.getDate() + days);
-      return date;
-    }
-
+    // Configure date pickers
     $('#sandbox-container .input-daterange').datepicker({
       format: "yyyy-mm-ddT00:00:00Z",
       todayBtn: "linked",
@@ -148,35 +143,37 @@
       todayHighlight: true
     });
 
-    $("#start").val(new Date().addDays(-14).toISOString())
+    // Set end date to today's date
     $("#end").val(new Date().toISOString())
 
-    //#endregion 
-
+    /**
+     * Starts the entire process
+     * */
     async function start() {
       try {
+        // Init
         showStatus('Initializing...');
-
         $("#search").attr('disabled', true);
         $("#spinner").attr('hidden', false);
 
+        // Date check
         if ($("#start").val() === '' || $("#end").val() === '') {
           alert("Please set the start and end dates first");
           return;
         }
 
-        console.log('start()');
+        // Clear conversations
         $("#conversationsTable").empty();
 
         // Get list of conversations with consult transfers to external parties
         showStatus('Getting Conversations with a completed external consult transfer...');
-        await runAnalyticsQuery($("#externalPhoneNumber").val());
+        await getAnalyticsConversations($("#externalPhoneNumber").val());
 
         // Get recordings ids
         showStatus('Getting Recordings...');
         await getRecordingIds();
 
-        // Populate table
+        // Populate table with all the info
         await populateTable();
       } catch (err) {
         console.error(err);
@@ -187,76 +184,117 @@
       }
     }
 
-    function runAnalyticsQuery(phoneNumber) {
+
+    /**
+     * Starts the entire process
+     * @param phoneNumber (optional) Specific phone number to search for
+     * */
+    function getAnalyticsConversations(phoneNumber) {
       return new Promise(async (resolve, reject) => {
-        try {
-          let body = {
-            "interval": `${$("#start").val()}/${$("#end").val()}`,
-            "order": "asc",
-            "orderBy": "conversationStart",
-            "paging": {
-              "pageSize": 100,
-              "pageNumber": 1
-            },
-            "segmentFilters": [
-              {
-                "type": "and",
-                "predicates": [
-                  {
-                    "type": "dimension",
-                    "dimension": "direction",
-                    "operator": "matches",
-                    "value": "outbound"
-                  }
-                ]
-              }
-            ],
-            "conversationFilters": [
-              {
-                "type": "and",
-                "predicates": [
-                  {
-                    "type": "metric",
-                    "metric": "nConsultTransferred",
-                    "range": {
-                      "gte": 1
-                    }
-                  }
-                ]
-              }
-            ]
-          };
 
-          if (phoneNumber) {
-            body.segmentFilters[0].predicates.push({
-              "type": "dimension",
-              "dimension": "ani",
-              "operator": "matches",
-              "value": phoneNumber
-            })
+        // Clear all existing conversations
+        results.conversations = [];
+
+        let startDate = new Date($("#start").val());
+        let endDate = startDate.addDays(30); // Max interval range supported by Genesys Cloud Analytics queries
+
+        // Loop through date intervals and pages
+        while (true) {
+          let pageNumber = 0;
+          while (true) {
+            pageNumber++;
+            try {
+              let body = {
+                "interval": `${startDate.toISOString()}/${endDate.toISOString()}`,
+                "order": "asc",
+                "orderBy": "conversationStart",
+                "paging": {
+                  "pageSize": 100,
+                  "pageNumber": pageNumber
+                },
+                "segmentFilters": [
+                  {
+                    "type": "and",
+                    "predicates": [
+                      {
+                        "type": "dimension",
+                        "dimension": "direction",
+                        "operator": "matches",
+                        "value": "outbound"
+                      }
+                    ]
+                  }
+                ],
+                "conversationFilters": [
+                  {
+                    "type": "and",
+                    "predicates": [
+                      {
+                        "type": "metric",
+                        "metric": "nConsultTransferred",
+                        "range": {
+                          "gte": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              };
+
+              if (phoneNumber) {
+                body.segmentFilters[0].predicates.push({
+                  "type": "dimension",
+                  "dimension": "ani",
+                  "operator": "matches",
+                  "value": phoneNumber
+                })
+              }
+
+              console.log('Running analytics query:', body);
+              console.debug('Page Number:', pageNumber);
+              console.debug('Start Date:', startDate);
+              console.debug('End Date:', endDate);
+
+              let data = await callAPI('POST', 'analytics/conversations/details/query', body);
+              if (Object.keys(data).length > 0) {
+                console.debug('Got conversations:', data)
+                results.conversations.push(...data.conversations);
+              } else {
+                break; // No results for current page. Exiting to jump to the next date interval.
+              }
+
+            } catch (error) {
+              console.error(error);
+              return reject(error);
+            }
           }
+          startDate = endDate;
+          endDate = startDate.addDays(30);
 
-          console.log('Running analytics query:', body);
-          let data = await callAPI('POST', 'analytics/conversations/details/query', body);
-          results.analyticsQueryResults = data;
-          return resolve();
-        } catch (error) {
-          return reject(error)
+          if (startDate > new Date()) {
+            console.debug('No more dates')
+            break; // We are past today's date so no reason to continue.
+          }
         }
+        console.log('Got conversations:', results.conversations);
+        return resolve();
       });
     }
 
+    /**
+     * Gets the recording ids for each conversation. The only way to do this is to request the recording download.
+     * */
     function getRecordingIds() {
       return new Promise(async (resolve, reject) => {
         try {
-          if (!results.analyticsQueryResults || !results.analyticsQueryResults.conversations) {
+          if (!results.conversations) {
             alert('No conversations found');
             return reject('No conversations found');
           }
-          for await (const conversation of results.analyticsQueryResults.conversations) {
+          for await (const conversation of results.conversations) {
             try {
               let data = await callAPI('GET', `conversations/${conversation.conversationId}/recordings?maxWaitMs=5000&formatId=WEBM`);
-              console.debug(data);
+              console.debug('Got recording data:', data);
               conversation.recordings = data;
             } catch (error) {
               if (error.status === 404) {
@@ -265,6 +303,7 @@
               }
             }
           }
+          console.log('Results with recordings:', results);
           return resolve();
         } catch (error) {
           return reject(error);
@@ -272,14 +311,17 @@
       });
     }
 
+    /**
+     * Populates the table using JQuery
+     * */
     async function populateTable() {
-      if (!results?.analyticsQueryResults?.conversations) {
+      if (!results?.conversations) {
         console.error('No results found');
+        alert('No recordings found');
         return;
       }
 
-      console.log('Results:', results);
-      for await (const conversation of results.analyticsQueryResults.conversations) {
+      for await (const conversation of results.conversations) {
         if (conversation.recordings && conversation.recordings.length > 1) {
           let conversationRow = $("<tr/>").appendTo("#conversationsTable");
 
@@ -314,7 +356,6 @@
 
           // Conversation - External Phone Number
           let conversationExternalPhoneNumberDiv = $("<div/>").appendTo(conversationDiv);
-
           for (let index = 0; index < conversation.participants.length; index++) {
             const conversationParticipant = conversation.participants[index];
             if ((conversationParticipant.purpose === 'customer' || conversationParticipant.purpose === 'external') && conversationParticipant.externalContactId) {
@@ -358,17 +399,22 @@
 
     }
 
+    /**
+     * Deletes a recording by setting its deleteDate to a date before today (yesterday by default)
+     * Recording will not show as deleted right away. This can take a few minutes.
+     * */
     function deleteRecording(conversationId, recordingId) {
       return new Promise(async (resolve, reject) => {
         try {
+          // Set deleteDate to yesterday
           let body = {
             fileState: "DELETED",
             deleteDate: new Date().addDays(-1).toISOString()
           };
 
-          console.log('Setting recording deleteDate to:', body.deleteDate);
+          console.debug('Setting recording deleteDate to:', body.deleteDate);
           let data = await callAPI('PUT', `conversations/${conversationId}/recordings/${recordingId}`, body);
-          console.log('Recording set for deletion');
+          console.log('Recording marked for deletion');
           $('.toast').toast('show');
           return resolve();
         } catch (error) {
@@ -377,6 +423,9 @@
       });
     }
 
+    /**
+     * Logs the user out of the session with this app only
+     * */
     async function logout() {
       await callAPI('DELETE', 'tokens/me');
       localStorage.clear('access_token');
@@ -384,7 +433,8 @@
       window.location.href = 'index.html';
     }
 
-    //#region Misc
+    //#region Misc Functions
+
     function showStatus(message) {
       $("#message").text(message);
     }
@@ -405,7 +455,7 @@
           })
             .then((response) => {
               if (response.status === 202) {
-                // Need to wait until ready (200)
+                // Need to wait until ready (200). Handled by axios interceptors.
               }
               console.debug('Axios request succeeded:', response);
               return resolve(response.data);
@@ -427,10 +477,19 @@
 
     axios.interceptors.response.use(async (response) => {
       console.debug('Response:', response);
-      if (response.status === 202) {
-        console.log('Recording is not ready yet. Retrying...');
-        await sleep(1000);
-        return axios.request(response.config);
+      switch (response.status) {
+        case 202:
+          console.log('Recording is not ready yet. Retrying...');
+          await sleep(1000);
+          return axios.request(response.config);
+          break;
+        case 429:
+          console.log('Too many requests. Waiting for 1 minute and trying again...');
+          await sleep(60000);
+          return axios.request(response.config);
+          break;
+        default:
+          break;
       }
       return response;
     }, (error) => {
@@ -440,6 +499,13 @@
     function sleep(ms) {
       console.log(`Waiting ${ms} ms...`);
       return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    // Prototype function add days to a date
+    Date.prototype.addDays = function (days) {
+      var date = new Date(this.valueOf());
+      date.setDate(date.getDate() + days);
+      return date;
     }
 
     //#endregion
