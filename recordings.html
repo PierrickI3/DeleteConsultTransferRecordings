@@ -9,23 +9,7 @@
   <!-- Bootstrap core CSS -->
   <link href="./assets/dist/css/bootstrap.min.css" rel="stylesheet" />
 
-  <style>
-    .bd-placeholder-img {
-      font-size: 1.125rem;
-      text-anchor: middle;
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none;
-    }
-
-    @media (min-width: 768px) {
-      .bd-placeholder-img-lg {
-        font-size: 3.5rem;
-      }
-    }
-  </style>
-  <!-- Custom styles for this template -->
+  <!-- Custom styles -->
   <link href="recordings.css" rel="stylesheet" />
   <link href="./assets/dist/css/bootstrap-datepicker3.standalone.min.css" rel="stylesheet">
 </head>
@@ -56,11 +40,55 @@
       </div>
     </div>
 
+    <!-- Modal -->
+    <div class="modal fade" id="myActivityModal" tabindex="-1" role="dialog" aria-labelledby="myActivityModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="myActivityModalLabel">My Activity</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="container-fluid">
+              <table class="table table-hover table-sm table-responsive-xl">
+                <thead>
+                  <tr>
+                    <th scope="col">Date/Time</th>
+                    <th scope="col">Action</th>
+                    <th scope="col">Entity</th>
+                    <th scope="col">Recording Id</th>
+                    <th scope="col">Conversation Id</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">2020-12-14T10:31:31Z</th>
+                    <td>UpdateRetention</td>
+                    <td>Recording</td>
+                    <td>2675ac6e-b657-494d-8ccc-ec120ce35722</td>
+                    <td>c92a0437-8057-4a1d-98ef-1c7af9809225</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Header -->
-    <button class="btn btn-secondary mr-3" type="button" onclick="logout()">Logout</button>
-    <div class="span5 col-md-5 mb-3" id="sandbox-container" style="margin: 0 auto;">
-      <h3>Delete Consult Transfer Recordings</h3>
-      <div>This tool runs an analytics query to find calls with external consult transfers that were recorded and allows you to delete the last recording (which includes the conversation between the caller and the destination the call was transferred to) for this call.</div>
+    <div>
+      <button class="btn btn-secondary mr-3" type="button" onclick="logout()">Logout</button>
+      <button class="btn btn-primary mr-3" type="button" data-toggle="modal" data-target="#myActivityModal" onclick="showRetentionUpdates()">Show My Activity</button>
+      <div class="span5 col-md-5 mb-3" id="sandbox-container" style="margin: 0 auto;">
+        <h3>Delete Consult Transfer Recordings</h3>
+        <div>This tool runs an analytics query to find calls with external consult transfers that were recorded and allows you to delete the last recording (which includes the conversation between the caller and the destination the call was transferred to) for this call.</div>
+      </div>
     </div>
 
     <!-- Messages -->
