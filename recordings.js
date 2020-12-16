@@ -108,6 +108,12 @@ function getAnalyticsConversations() {
                 "predicates": [
                   {
                     "type": "dimension",
+                    "dimension": "mediaType",
+                    "operator": "matches",
+                    "value": "voice"
+                  },
+                  {
+                    "type": "dimension",
                     "dimension": "direction",
                     "operator": "matches",
                     "value": "outbound"
@@ -193,8 +199,8 @@ function filterConversations(phoneNumber) {
         let lastParticipant = conversation.participants[conversation.participants.length - 1];
         console.log('Last Participant:', lastParticipant);
 
-        // Only keep conversations which last participant's purpose is "customer"
-        if (lastParticipant.purpose !== 'customer') {
+        // Only keep conversations which last participant's purpose is "customer" or "external"
+        if (lastParticipant.purpose !== 'customer' || lastParticipant.purpose !== 'external') {
           continue; // Next!
         }
 
