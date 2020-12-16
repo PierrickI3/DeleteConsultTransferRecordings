@@ -200,7 +200,7 @@ function filterConversations(phoneNumber) {
         console.log('Last Participant:', lastParticipant);
 
         // Only keep conversations which last participant's purpose is "customer" or "external"
-        if (lastParticipant.purpose !== 'customer' || lastParticipant.purpose !== 'external') {
+        if (lastParticipant.purpose !== 'customer' && lastParticipant.purpose !== 'external') {
           continue; // Next!
         }
 
@@ -274,7 +274,7 @@ function getRecordingIds() {
  * Populates the table using JQuery
  * */
 async function populateTable() {
-  if (!results?.conversations) {
+  if (!results.conversations) {
     console.error('No results found');
     alert('No recordings found');
     return;
