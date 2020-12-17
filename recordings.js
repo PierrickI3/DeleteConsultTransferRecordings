@@ -54,14 +54,14 @@ async function start() {
     $("#conversationsTable").empty();
 
     // Get list of conversations with consult transfers to external parties
-    showStatus('Getting Conversations with a completed external consult transfer...');
+    showStatus('Getting Conversations with at least one completed external consult transfer...');
     await getAnalyticsConversations();
 
     showStatus('Filtering Conversations...');
     await filterConversations($("#transferPhoneNumber").val());
 
     // Get recordings ids
-    showStatus('Getting Recordings...');
+    showStatus('Getting Recordings for affected conversations...');
     await getRecordingIds();
 
     // Populate table with all the info
@@ -193,45 +193,36 @@ function filterConversations(phoneNumber) {
         return reject('No conversations found');
       }
 
-      let filteredConversations = [];
       for await (const conversation of results.conversations) {
-        // Get last participant
-        let lastParticipant = conversation.participants[conversation.participants.length - 1];
-        console.log('Last Participant:', lastParticipant);
+        // Init
+        conversation.qualifiedSessionIds = [];
 
-        // Only keep conversations which last participant's purpose is "customer" or "external"
-        if (lastParticipant.purpose !== 'customer' && lastParticipant.purpose !== 'external') {
-          continue; // Next!
+        // Find all conversations with purpose set to 'customer' or 'external'
+        let participants = conversation.participants.filter(p => p.purpose === 'customer' || p.purpose === 'external');
+        console.log('Participants with purpose set to customer or external:', participants);
+
+        for await (const participant of participants) {
+          // Any external transfers?
+          let externalTransferSessions = participant.sessions.filter(s => s.dnis !== s.sessionDnis);
+          console.log('External Transfer Sessions:', externalTransferSessions);
+
+          for await (const externalTransferSession of externalTransferSessions) {
+            // Is last segment has 'segmentType' set to 'interact'?
+            let lastSegment = externalTransferSession.segments[externalTransferSession.segments.length - 1];
+            console.log('Last session\'s segment is interact?', lastSegment.segmentType === 'interact');
+            if (lastSegment.segmentType === 'interact') {
+              // If phoneNumber is set, ignore segments that were not transferred to that phone number
+              if (phoneNumber && phoneNumber !== externalTransferSession.sessionDnis) {
+                continue; // Next session
+              }
+
+              // Conversation qualifies. Keep the session id for reference (need it later on to find out which recordings need to be deleted)
+              conversation.qualifiedSessionIds.push(externalTransferSession.sessionId);
+              console.log('Session id to delete:', externalTransferSession.sessionId);
+            }
+          }
         }
-
-        // Get last session
-        let lastSession = lastParticipant.sessions[lastParticipant.sessions.length - 1];
-        console.log('Last Session:', lastSession);
-
-        // If dnis != sessionDnis, ignore this conversation
-        // This means that the call was not transferred
-        if (lastSession.dnis === lastSession.sessionDnis) {
-          continue; // Next!
-        }
-
-        // If phoneNumber is set, do not show calls that were not transferred to that phone number
-        if (phoneNumber && phoneNumber !== lastSession.sessionDnis) {
-          continue; //Next
-        }
-
-        // Get last segment
-        let lastSegment = lastSession.segments[lastSession.segments.length - 1];
-        console.log('Last Segment:', lastSegment);
-
-        // If the last segment is not "interact", the ignore the conversation
-        if (lastSegment.segmentType !== 'interact') {
-          continue; // Next!
-        }
-
-        console.log('Conversation is a match:', conversation.conversationId);
-        filteredConversations.push(conversation);
       }
-      results.conversations = filteredConversations;
       console.log('After Filtering Conversations:', results);
       return resolve();
     } catch (error) {
@@ -250,11 +241,17 @@ function getRecordingIds() {
         alert('No conversations found');
         return reject('No conversations found');
       }
+
       for await (const conversation of results.conversations) {
         try {
           let data = await callAPI('GET', `conversations/${conversation.conversationId}/recordings?maxWaitMs=5000&formatId=WEBM`);
           console.debug('Got recording data:', data);
           conversation.recordings = data;
+
+          for await (const recording of conversation.recordings) {
+            // If recording session id is one of the qualified session ids, mark it for deletion
+            recording.markForDeletion = conversation.qualifiedSessionIds.includes(recording.sessionId);
+          }
         } catch (error) {
           if (error.status === 404) {
             console.debug('No recordings found for: ', conversation.conversationTd);
@@ -262,6 +259,7 @@ function getRecordingIds() {
           }
         }
       }
+
       console.log('Results with recordings:', results);
       return resolve();
     } catch (error) {
@@ -326,32 +324,29 @@ async function populateTable() {
 
       // Recordings
       let recordingsTd = $("<td />", {}).appendTo(conversationRow);
-      let lastRecording;
       for await (const recording of conversation.recordings) {
         let recordingDiv = $("<div/>").appendTo(recordingsTd);
         $("<div/>").text(recording.id).appendTo(recordingDiv);
+        if (recording.markForDeletion) {
+          let deleteRecordingDiv = $("<div/>").appendTo(recordingDiv);
+          // let buttonClass = recording.fileState !== "AVAILABLE" ? "btn-success" : "btn-danger";
+          // let buttonText = recording.fileState !== "AVAILABLE" ? `Status: ${recording.fileState}` : "Delete";
+          // let buttonDisabled = recording.fileState !== "AVAILABLE";
+          if (recording.fileState === 'AVAILABLE') {
+            let deleteButton = $("<a/>", { class: 'btn' }).appendTo(deleteRecordingDiv);
+            $("<i/>", { class: "fas fa-trash text-danger" }).appendTo(deleteButton);
+            deleteButton.on('click', (e) => {
+              e.preventDefault();
+              deleteRecording(conversation.conversationId, recording.id);
+            });
+          } else {
+            $("<i/>", { class: "fas fa-check text-success" }).appendTo(deleteRecordingDiv);
+          }
+          //$("<button/>", { class: `btn ml-3 ${buttonClass}`, disabled: buttonDisabled }).text(buttonText).on('click', () => deleteRecording(conversation.conversationId, recording.id)).appendTo(deleteRecordingDiv);
+        }
         let recordingStartTimeDiv = $("<div/>").appendTo(recordingDiv);
         $("<small/>").text(`Start Time: ${recording.startTime}`).appendTo(recordingStartTimeDiv);
-
-        lastRecording = {
-          conversationId: conversation.conversationId,
-          recordingId: recording.id,
-          fileState: recording.fileState
-        };
       }
-
-      // Last Recording
-      let lastRecordingTd = $("<td />", {}).appendTo(conversationRow);
-
-      let lastRecordingDiv = $("<div/>").appendTo(lastRecordingTd);
-      let buttonClass = lastRecording.fileState !== "AVAILABLE" ? "btn-success" : "btn-danger";
-      let buttonText = lastRecording.fileState !== "AVAILABLE" ? `Status: ${lastRecording.fileState}` : "Delete Last Recording";
-      let buttonDisabled = lastRecording.fileState !== "AVAILABLE";
-      $("<button/>", { class: `btn ml-3 ${buttonClass}`, disabled: buttonDisabled }).text(buttonText).on('click', (e) => deleteRecording(lastRecording.conversationId, lastRecording.recordingId)).appendTo(lastRecordingDiv);
-
-      let lastRecordingRecordingId = $("<div/>").appendTo(lastRecordingDiv);
-      $("<small/>", {}).text(` (${lastRecording.recordingId})`).appendTo(lastRecordingRecordingId);
-
     }
   }
 

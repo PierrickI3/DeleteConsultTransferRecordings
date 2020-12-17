@@ -8,16 +8,18 @@ This tool scans a Genesys Cloud organization using your own credentials and list
   - Conversation Filters:
     - nConsultTransferred >= 1
   - Segment Filters
+    - mediaType = "voice"
     - direction = "outbound"
     - segmentType = "interact"
 
-The full analytics query is in the `js/recordings.js` in the `getAnalyticsConversations()` function.
+This returns calls that have at least one consult transfer and at least one outbound call that got connected. The full analytics query is in the `getAnalyticsConversations()` function in the `recordings.js` file.
 
-This output from that query is a preliminary list of conversations. However, more rules must be followed to get the correct list of affected recordings:
+This output from that query is a preliminary list of conversations. However, more rules must be applied to get the correct list of affected conversations:
 
-- The last Participant of the conversation must have `purpose` set to `customer`.
-- The last session of the last participant must have its `dnis` and `sessionDnis` properties with different values (happens when a transfer occurs).
-- The last segment of that last session must have `segmentType` = `interact` to show that the transferred call connected.
+- If a participant with `purpose` set to `customer` has the following conditions:
+  - A session with `dnis` different than `sessionDnis`, indicating that the call was transferred
+  - The last segment of that session has `segmentType` set to `interact`, indicating that the transferred call was connected.
+- Then the conversation qualifies for recordings that need to be deleted
 
 ## How to use
 
