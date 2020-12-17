@@ -366,11 +366,12 @@ function deleteRecording(conversationId, recordingId) {
       };
 
       console.debug('Setting recording deleteDate to:', body.deleteDate);
-      let data = await callAPI('PUT', `conversations/${conversationId}/recordings/${recordingId}`, body);
-      console.log('Recording marked for deletion');
+      await callAPI('PUT', `conversations/${conversationId}/recordings/${recordingId}`, body);
+      console.log('Recording ' + recordingId + ' in conversation id ' + conversationId + ' marked for deletion');
       $('.toast').toast('show');
       return resolve();
     } catch (error) {
+      console.error(error);
       return reject(error);
     }
   });
