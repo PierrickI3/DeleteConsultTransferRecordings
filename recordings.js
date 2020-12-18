@@ -258,7 +258,7 @@ function getRecordingIds() {
 
       for await (const conversation of results.conversations) {
         try {
-          let data = await callAPI('GET', `conversations/${conversation.conversationId}/recordings?maxWaitMs=5000&formatId=WEBM`);
+          let data = await callAPI('GET', `conversations/${conversation.conversationId}/recordingmetadata`);
           console.debug('Got recording data for conversation ' + conversation.conversationId + ':', data);
           conversation.recordings = data;
 
