@@ -2,6 +2,15 @@
 
 This tool scans a Genesys Cloud organization using your own credentials and lists recordings that have been affected by a Genesys Cloud bug which caused external transfers to be recorded.
 
+## Table of Contents
+
+- [Technical Description](#Technical-Description)
+- [Getting Started](#Getting-Started)
+- [Troubleshooting](#Troubleshooting)
+- [For Developers](#For-Developers)
+
+## Technical Description
+
 The following logic is used to find recordings that should be deleted:
 
 - We first run an analytics query with the following filters:
@@ -18,7 +27,7 @@ The following logic is used to find recordings that should be deleted:
     - The last segment of that session has `segmentType` set to `interact`, indicating that the transferred call was connected.
   - Then the conversation qualifies for recordings that need to be deleted
 
-## How to use
+## Getting Started
 
 - Get a user and a password to login into the affected Genesys Cloud organization with the following permissions:
   - Recording > All Permissions
@@ -47,7 +56,7 @@ The following logic is used to find recordings that should be deleted:
 
 ![My Activity](https://raw.githubusercontent.com/PierrickI3/DeleteConsultTransferRecordings/master/assets/brand/myactivity.png "My Activity")
 
-## How to troubleshoot
+## Troubleshooting
 
 Use your browser console and network tools to troubleshoot issues:
 
@@ -128,7 +137,7 @@ You can also use the `Network` tab to view all ongoing requests:
 
 ![Network Logging](https://raw.githubusercontent.com/PierrickI3/DeleteConsultTransferRecordings/master/assets/brand/network.png "Network Logging")
 
-## Developers
+## For Developers
 
 - Clone this repository
 - Start a web server (or use VSCode live server extension)
