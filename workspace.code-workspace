@@ -13,6 +13,9 @@
     },
     "[javascript]": {
       "editor.defaultFormatter": "vscode.typescript-language-features"
-    }
+    },
+    "javascript.preferences.quoteStyle": "single",
+    "eslint.format.enable": true,
+    "typescript.preferences.quoteStyle": "single"
   }
 }

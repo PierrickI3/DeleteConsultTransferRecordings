@@ -97,7 +97,7 @@
     <div>
       <div class="alert alert-info mb-3 mt-3" role="alert">
         The following permissions are required: <strong>Recordings > All Permissions</strong> and <strong>Analytics > All Permissions</strong><br>
-        Recordings will not show as deleted immediately. This will take a few minutes.
+        Recordings will not show as deleted immediately. This will take a few minutes. Recording will still show while GC handles the retention period change.
       </div>
       <div class="alert alert-warning mb-3 mt-3" role="alert">
         WARNING: Once recordings are deleted, they can not be recovered. <strong>Make sure you know what you are doing!</strong>
@@ -111,7 +111,7 @@
           <h6>#1 Select a Date range:</h6>
           <div class="input-daterange input-group mb-1" id="datepicker">
             <span class="input-group-addon ml-2 mr-2">from</span>
-            <input type="text" class="input-sm form-control" name="start" id="start" value="2020-10-14T00:00:00Z">
+            <input type="text" class="input-sm form-control" name="start" id="start">
             <span class="input-group-addon ml-2 mr-2">to</span>
             <input type="text" class="input-sm form-control" name="end" id="end">
           </div>
@@ -135,8 +135,11 @@
       <thead>
         <tr>
           <th scope="col">Start Time</th>
-          <th scope="col">Conversation w/ Consult Transfer</th>
-          <th scope="col">Recordings</th>
+          <th scope="col">Conversations w/ Consult Transfer</th>
+          <th scope="col">Recordings
+            <div><button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i> Recording can be deleted</div></button>
+            <div><small><i class="fas fa-check text-success"></i> Recording was deleted</small></div>
+          </th>
         </tr>
       </thead>
       <tbody id="conversationsTable">

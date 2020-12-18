@@ -1,5 +1,11 @@
 'use strict';
 
+// let startDate = "2020-10-14T00:00:00Z"; // Date when this bug started
+// let endDate = new Date().toISOString();
+
+let startDate = "2020-12-16T00:00:00Z";
+let endDate = "2020-12-17T00:00:00Z";
+
 //#region Initialization
 
 let results = {};
@@ -22,10 +28,12 @@ $('#sandbox-container .input-daterange').datepicker({
   todayHighlight: true
 });
 
+// Set start date
+$("#start").val(startDate);
 // Set end date to today's date
-$("#end").val(new Date().toISOString());
+$("#end").val(endDate);
 
-$('#myActivityModal').on('shown.bs.modal', function (e) {
+$('#myActivityModal').on('shown.bs.modal', function () {
   // do something...
   getMyActivity('today');
 });
@@ -196,20 +204,25 @@ function filterConversations(phoneNumber) {
       for await (const conversation of results.conversations) {
         // Init
         conversation.qualifiedSessionIds = [];
+        console.log(`Conversation: ${conversation.conversationId} - Starting analysis...`);
 
         // Find all conversations with purpose set to 'customer' or 'external'
         let participants = conversation.participants.filter(p => p.purpose === 'customer' || p.purpose === 'external');
-        console.log('Participants with purpose set to customer or external:', participants);
+        console.log(`Conversation: ${conversation.conversationId} - Participants with purpose set to customer or external: `, participants);
 
         for await (const participant of participants) {
           // Any external transfers?
           let externalTransferSessions = participant.sessions.filter(s => s.dnis !== s.sessionDnis);
-          console.log('External Transfer Sessions:', externalTransferSessions);
+          if (externalTransferSessions.length > 0) {
+            console.log(`Conversation: ${conversation.conversationId} - Participant: ${participant.participantId} - Found session(s) with an external transfer:`, externalTransferSessions);
+          } else {
+            console.log(`Conversation: ${conversation.conversationId} - Participant: ${participant.participantId} - No sessions found with an external transfer`);
+            continue; // Next participant
+          }
 
           for await (const externalTransferSession of externalTransferSessions) {
             // Is last segment has 'segmentType' set to 'interact'?
             let lastSegment = externalTransferSession.segments[externalTransferSession.segments.length - 1];
-            console.log('Last session\'s segment is interact?', lastSegment.segmentType === 'interact');
             if (lastSegment.segmentType === 'interact') {
               // If phoneNumber is set, ignore segments that were not transferred to that phone number
               if (phoneNumber && phoneNumber !== externalTransferSession.sessionDnis) {
@@ -218,12 +231,12 @@ function filterConversations(phoneNumber) {
 
               // Conversation qualifies. Keep the session id for reference (need it later on to find out which recordings need to be deleted)
               conversation.qualifiedSessionIds.push(externalTransferSession.sessionId);
-              console.log('Session id to delete:', externalTransferSession.sessionId);
+              console.log(`Conversation: ${conversation.conversationId} - Participant: ${participant.participantId} - Session: ${externalTransferSession.sessionId} - Recording for this session needs to be deleted (segmentType = 'interact')`);
             }
           }
         }
       }
-      console.log('After Filtering Conversations:', results);
+      console.log('Filtered Conversations:', results.conversations);
       return resolve();
     } catch (error) {
       return reject(error);
@@ -245,11 +258,14 @@ function getRecordingIds() {
       for await (const conversation of results.conversations) {
         try {
           let data = await callAPI('GET', `conversations/${conversation.conversationId}/recordings?maxWaitMs=5000&formatId=WEBM`);
-          console.debug('Got recording data:', data);
+          console.debug('Got recording data for conversation ' + conversation.conversationId + ':', data);
           conversation.recordings = data;
 
+          // Sort recordings by startTime
+          data.sort((a, b) => (a.startTime > b.startTime) ? 1 : -1);
+
+          // If recording session id is one of the qualified session ids, mark it for deletion
           for await (const recording of conversation.recordings) {
-            // If recording session id is one of the qualified session ids, mark it for deletion
             recording.markForDeletion = conversation.qualifiedSessionIds.includes(recording.sessionId);
           }
         } catch (error) {
@@ -260,7 +276,7 @@ function getRecordingIds() {
         }
       }
 
-      console.log('Results with recordings:', results);
+      console.log('Conversations with recordings:', results.conversations);
       return resolve();
     } catch (error) {
       return reject(error);
@@ -280,18 +296,23 @@ async function populateTable() {
 
   for await (const conversation of results.conversations) {
     if (conversation.recordings && conversation.recordings.length > 1) {
+      // Add new row to table
       let conversationRow = $("<tr/>").appendTo("#conversationsTable");
 
-      // Start Time
+      //#region Start Time
+
       $("<td/>").text(conversation.conversationStart).appendTo(conversationRow);
 
-      // Conversation - Id
-      let conversationTd = $("<td/>").appendTo(conversationRow);
-      let conversationDiv = $("<div/>").appendTo(conversationTd);
-      $("<div/>").html(`<a href="https://apps.${environment}/directory/#/engage/admin/interactions/${conversation.conversationId}" target="_blank">${conversation.conversationId}</a>`).appendTo(conversationDiv);
+      //#endregion
 
-      // Conversation - Division
-      let conversationDivisionDiv = $("<div/>").appendTo(conversationDiv);
+      //#region Conversations w/ Consult Transfer
+
+      let conversationTd = $("<td/>").appendTo(conversationRow);
+
+      // Conversation Id
+      $("<div/>").html(`<a href="https://apps.${environment}/directory/#/engage/admin/interactions/${conversation.conversationId}" target="_blank">${conversation.conversationId}</a>`).appendTo(conversationTd);
+
+      // Conversation Division
       for (let index = 0; index < conversation.divisionIds.length; index++) {
         const conversationDivisionId = conversation.divisionIds[index];
 
@@ -308,49 +329,46 @@ async function populateTable() {
             name: data.name
           });
         }
-        $("<small/>").text(`Division: ${divisionName}`).appendTo(conversationDivisionDiv);
+        $("<div/>").html(`<small>Division: ${divisionName}</small>`).appendTo(conversationTd);
       }
 
-      // Conversation - External Phone Number
-      let conversationExternalPhoneNumberDiv = $("<div/>").appendTo(conversationDiv);
-      for (let index = 0; index < conversation.participants.length; index++) {
-        const conversationParticipant = conversation.participants[index];
-        if ((conversationParticipant.purpose === 'customer' || conversationParticipant.purpose === 'external') && conversationParticipant.externalContactId) {
-          let externalPhoneNumber = conversationParticipant.sessions.find(s => s.mediaType === 'voice').ani;
-          $("<small/>").text(`External Caller's Phone Number: ${externalPhoneNumber}`).appendTo(conversationExternalPhoneNumberDiv);
-          $("<br/>").appendTo(conversationExternalPhoneNumberDiv);
-        }
-      }
+      //#endregion
 
-      // Recordings
-      let recordingsTd = $("<td />", {}).appendTo(conversationRow);
+      //#region Recording Ids & Start Times
+
+      let recordingIdsTd = $("<td />").appendTo(conversationRow);
       for await (const recording of conversation.recordings) {
-        let recordingDiv = $("<div/>").appendTo(recordingsTd);
-        $("<div/>").text(recording.id).appendTo(recordingDiv);
+
+        // Delete recording?
         if (recording.markForDeletion) {
-          let deleteRecordingDiv = $("<div/>").appendTo(recordingDiv);
-          // let buttonClass = recording.fileState !== "AVAILABLE" ? "btn-success" : "btn-danger";
-          // let buttonText = recording.fileState !== "AVAILABLE" ? `Status: ${recording.fileState}` : "Delete";
-          // let buttonDisabled = recording.fileState !== "AVAILABLE";
-          if (recording.fileState === 'AVAILABLE') {
-            let deleteButton = $("<a/>", { class: 'btn' }).appendTo(deleteRecordingDiv);
-            $("<i/>", { class: "fas fa-trash text-danger" }).appendTo(deleteButton);
-            deleteButton.on('click', (e) => {
-              e.preventDefault();
-              deleteRecording(conversation.conversationId, recording.id);
-            });
-          } else {
-            $("<i/>", { class: "fas fa-check text-success" }).appendTo(deleteRecordingDiv);
+          // Show recording with a delete button
+          switch (recording.fileState) {
+            case 'DELETED':
+              // Show recording was successfully deleted (fileState is DELETED)
+              $("<div/>", { class: "text-success" }).html(`<i class="fas fa-check"></i> ${recording.id} <small>Start Time: ${recording.startTime}</small>`).appendTo(recordingIdsTd);
+              break;
+            default:
+              // Recording is not deleted
+              let deleteButton = $("<button/>", { class: 'btn btn-danger' }).html(`<i class='fas fa-trash'></i> ${recording.id} <small>Start Time: ${recording.startTime}</small>`).appendTo(recordingIdsTd);
+              deleteButton.on('click', (e) => {
+                e.preventDefault();
+                deleteRecording(conversation.conversationId, recording.id);
+              });
           }
-          //$("<button/>", { class: `btn ml-3 ${buttonClass}`, disabled: buttonDisabled }).text(buttonText).on('click', () => deleteRecording(conversation.conversationId, recording.id)).appendTo(deleteRecordingDiv);
+        } else {
+          // Do not delete recording. Just show it.
+          $("<div/>").html(`${recording.id} <small>Start Time: ${recording.startTime}</small>`).appendTo(recordingIdsTd);
         }
-        let recordingStartTimeDiv = $("<div/>").appendTo(recordingDiv);
-        $("<small/>").text(`Start Time: ${recording.startTime}`).appendTo(recordingStartTimeDiv);
+
+        // Recording Start Times
+        //$("<div />", {}).text(` Start Time: ${recording.startTime}`).appendTo(conversationRow);
       }
+
+      //#endregion
     }
   }
-
 }
+
 
 /**
  * Deletes a recording by setting its deleteDate to a date before today (yesterday by default)
