@@ -36,7 +36,7 @@ $("#end").val(endDate);
 
 $('#myActivityModal').on('shown.bs.modal', function () {
   // do something...
-  getMyActivity('today');
+  getMyActivity();
 });
 
 //#endregion
@@ -410,27 +410,15 @@ async function logout() {
 
 //#region My Activity
 
-function getMyActivity(period) {
+function getMyActivity() {
   $('#auditResults').empty();
 
   let startDate, endDate;
-  switch (period) {
-    case 'today':
-      startDate = new Date();
-      startDate.setUTCHours(0, 0, 0, 0);
-      endDate = new Date();
-      break;
-    case 'yesterday':
-      startDate = new Date();
-      startDate = startDate.addDays(-1);
-      startDate.setUTCHours(0, 0, 0, 0);
-      endDate = new Date();
-      endDate = endDate.addDays(-1);
-      endDate.setUTCHours(23, 59, 59, 999);
-      break;
-    default:
-      break;
-  }
+  startDate = new Date();
+  startDate = startDate.addDays(-7);
+  startDate.setUTCHours(0, 0, 0, 0);
+  endDate = new Date();
+  endDate.setUTCHours(23, 59, 59, 999);
   let interval = `${startDate.toISOString()}/${endDate.toISOString()}`;
   console.log('Interval:', interval);
 
