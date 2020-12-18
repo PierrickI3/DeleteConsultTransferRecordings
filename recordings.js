@@ -1,10 +1,11 @@
 'use strict';
 
-// let startDate = "2020-10-14T00:00:00Z"; // Date when this bug started
-// let endDate = new Date().toISOString();
+let startDate = "2020-10-14T00:00:00Z"; // Date when this bug started
+let endDate = new Date().toISOString();
 
-let startDate = "2020-12-16T00:00:00Z";
-let endDate = "2020-12-17T00:00:00Z";
+// For testing purposes only
+// let startDate = "2020-12-16T00:00:00Z";
+// let endDate = "2020-12-17T00:00:00Z";
 
 //#region Initialization
 
