@@ -20,6 +20,12 @@ The following logic is used to find recordings that should be deleted:
 
 ## How to use
 
+- Get a user and a password to login into the affected Genesys Cloud organization with the following permissions:
+  - Recording > All Permissions
+  - ![Recording Permission](https://raw.githubusercontent.com/PierrickI3/DeleteConsultTransferRecordings/master/assets/brand/recordingpermission.png "Recording Permission")
+  - Analytics > All Permissions
+  - ![Analytics Permission](https://raw.githubusercontent.com/PierrickI3/DeleteConsultTransferRecordings/master/assets/brand/analyticspermission.png "Analytics Permission")
+
 - Go to [https://pierricki3.github.io/DeleteConsultTransferRecordings/index.html](https://pierricki3.github.io/DeleteConsultTransferRecordings/index.html)
 
 ![Login Screen](https://raw.githubusercontent.com/PierrickI3/DeleteConsultTransferRecordings/master/assets/brand/loginscreen.png "Login Screen")
